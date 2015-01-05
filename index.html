@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>"Big Data" Bioinformatics</title>
+  <link rel="stylesheet" href="css/reveal.min.css">
+  <link rel="stylesheet" href="css/theme/beige.css" id="theme">
+  <link rel="stylesheet" href="lib/css/zenburn.css">
+  <script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = 'css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+  </script>
+  <!--[if lt IE 9]>
+  <script src="lib/js/html5shiv.js"></script>
+  <![endif]-->
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <section>
+        <h2>"Big Data" Bioinformatics</h2>
+        <h4>Models for Distributed, Parallel and Concurrent Processing</h4>
+        <p>Brian Repko<br />December 4, 2014</p>
+      </section>
+
+      <section>
+        <h2>Agenda</h2>
+        <ul>
+          <li>What does this have to do with me?</li>
+          <li>High Performance Computing models</li>
+          <li>Traditional Software Engineering models</li>
+          <li>Distributed Systems Architecture</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>What does this have to do with me?</h2>
+        <ul>
+          <li>Existing tools designed as single flow / single machine</li>
+          <li>Programming languages have limits (R, python)</li>
+          <li>CPUs moving to multi-core</li>
+          <ul>
+            <li>Single flow can't make use of this</li>
+            <li>Some processes hit CPU/memory issues</li>
+          </ul>
+          <li>Data volume in bioinformatics</li>
+          <ul>
+            <li>4 "V"s of "Big Data"</li>
+            <ul>
+              <li><b>V</b>olume, <b>V</b>elocity, <b>V</b>ariety and <b>V</b>eracity</li>
+            </ul>
+            <li>Limits on single node CPU / memory</li>
+          </ul>
+        </ul>
+        <aside class="notes">
+        <ul>
+          <li>compression/decompression - single threaded!</li>
+        </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2>Terminology</h2>
+        <ul>
+          <li><i>Concurrent</i> - dealing with a lot of things</li>
+          <li><i>Parallel</i> - doing a lot of things</li>
+          <li>Why parallelize / use concurrency?</li>
+          <ul>
+            <li><b>Throughput</b> and <b>Responsiveness</b></li>
+          </ul>
+          <li><i>Distributed</i> - anything non-shared</li>
+          <li>Why distribute?</li>
+          <ul>
+            <li><b>Scalability</b> and <b>Availability</b></li>
+          </ul>
+          <li>Goal is concurrent, distributed, resilient, simple</li>
+        </ul>
+        <aside class="notes">
+        <ul>
+          <li>teacher/assistant analogy</li>
+        </ul>
+        </aside>
+      </section>
+
+      <section>
+
+        <section>
+          <h2>HPC Models</h2>
+          <img style='float: right' src='images/hpc-cover.jpg'/>
+          <ul>
+            <li>Von Neumann Machine</li>
+            <li>OpenMP</li>
+            <li>MPI</li>
+            <li>General Purpose GPU</li>
+            <li>Beyond HPC (HTC/MTC)</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Von Neumann Machine</h2>
+          <ul>
+            <li>John von Neumann 1945</li>
+            <li>CPU, Memory, I/O</li>
+            <li>Program AND data in memory</li>
+            <li>SISD, SIMD, MIMD models</li>
+            <li>Multi-levels/types of cache, UMA/ccNUMA</li>
+            <li>Threading, pipelining, vectorization</li>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>MMX, SSE and AVX for vectorization</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>Von Neumann Machine</h2>
+          <div>
+            <img style='float: right; margin: 2px' height='245px' src='images/i7_threads.jpg' />
+            <img style='float: right; margin: 2px' height='195px' src='images/i7_core.jpg' />
+            <img style='float: right; margin: 2px' height='195px' src='images/von-neumann.jpg' />
+          </div>
+        </section>
+
+        <section>
+          <h2>OpenMP (Multi-Processing)</h2>
+          <ul>
+            <li>Shared memory programming model</li>
+            <li>Based on threads, fork/join and a known "memory model"</li>
+            <li>C/C++ pragmas, Fortran compiler directives</li>
+            <li>OpenMP directive categories:</li>
+            <ul>
+              <li>control, work-sharing, data visibility, synchronization and context / environment</li>
+            </ul>
+            <li>Pros/Cons with use of directives</li>
+            <li>Optimizations very architecture-specific</li>
+            <li>Can be difficult to get correct</li>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>basically fork / join</li>
+            <li>knock knock race condition / who's there?</li>
+            <li>bowtie-mem max out at 8-12 cores - memory caching (Intel study)</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>OpenMP (Multi-Processing)</h2>
+          <img height='340px' src='images/fork-join.png'>
+        </section>
+
+        <section>
+          <h2><u>M</u>essage <u>P</u>assing <u>I</u>nterface</h2>
+          <ul>
+            <li>Distributed memory programming model</li>
+            <li>Single-Program Multiple-Data (SPMD)</li>
+            <li>P2P and Broadcast, Synch and Asynch</li>
+            <li>Datatypes for message content</li>
+            <li>Communicators / network topology</li>
+            <li>Program instance gets rank / size</li>
+            <ul>
+              <li>Rank 0 typically a coordinator / reducer</li>
+              <li>All others do work and send result to rank 0</li>
+            </ul>
+            <li>Dynamic process management in MPI-2</li>
+            <li>Hybrid models with OpenMP</li>
+            <li>Bioinformatics example: Trinity (transcript assembly) on Cray</li>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>multiple language bindings</li>
+            <li>if (rank=0) then ... else ...</li>
+            <li>Trinity (Broad/Cray) collaboration</li>
+            <li>Inchworm, Chrysalis and Butterfly, de novo transcript assembly from RNAseq</li>
+            <li>Inchworm changed from sequential to MPI-parallel</li>
+            <li>100 MPI ranks - 18x faster</li>
+            <li>1000 MPI ranks - 36x faster</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2><u>G</u>eneral <u>P</u>urpose GPU</h2>
+          <ul>
+            <li>OpenCL (computing language)</li>
+            <ul>
+              <li>CUDA (specific to NVIDIA)</li>
+            </ul>
+            <li>Standard library and device-specific driver (ICD)</li>
+            <li>Kernel routine written in OpenCL C</li>
+            <li>Global / Work-group / Work-item memory model</li>
+            <li>Devices are sent streams of work-groups</li>
+            <li>Kernel runs in parallel on work-items</li>
+            <li>Very useful together with OpenGL</li>
+            <li>Extension of this idea to custom chips (ASIC/FPGA)</li>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>like MPI but all on a chip!</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>Beyond HPC (HTC/MTC)</h2>
+          <div style='float: right'>
+            <img style='border: 2px solid black' height='200px' src='images/htc-mtc.gif'/>
+          </div>
+          <ul>
+            <li>High-Throughput Computing</li>
+            <ul>
+              <li>Long-running, parallel jobs</li>
+            </ul>
+            <li>Many-Task Computing</li>
+            <ul>
+              <li>Mix of job size, Workflows</li>
+            </ul>
+            <li>Cluster/Grid Computing (Grid Engine)</li>
+            <li>Lots of workflow solutions</li>
+            <ul>
+              <li>YAP (MPI)</li>
+              <li>Swift scripting language</li>
+              <li>bpipe (workflow DSL)</li>
+              <li>celery / gridmap (Python)</li>
+            </ul>
+            <li>Process-level failure / error handling</li>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>data analysis/mining - size is larger than MPI</li>
+            <li>bioinformatics = workflows! - various sizing configuration</li>
+            <li>challenge is always resiliency/failover (and data locality)</li>
+          </ul>
+          </aside>
+        </section>
+
+      </section>
+
+      <section>
+
+        <section>
+          <h2>Traditional Engineering Models</h2>
+          <div style='float: right'>
+            <img style='border: 2px solid black' height='200px' src='images/7cm-cover.jpg'/>
+            <br/>
+            <img style='border: 2px solid black' height='200px' src='images/programming-distributed-systems-cover.jpg'/>
+          </div>
+          <ul>
+            <li>Threads, Locks and Fork/Join</li>
+            <li>Functional Programming</li>
+            <li>Communicating Sequential Processes (CSP)</li>
+            <li>Actors</li>
+         </ul>
+        </section>
+ 
+        <section>
+          <h2>Threads, Locks and Fork/Join</h2>
+          <ul>
+            <li>These are the general terms</li>
+            <li>OpenMP is a particular style (via macros)</li>
+            <li>Support varies by programming language</li>
+            <ul>
+              <li>May or may not use multiple cores</li>
+              <li>For C, choose OpenMP or pthreads</li>
+            </ul>
+            <li>Concurrency model (non-deterministic)</li>
+            <li>Difficult to get correct</li>
+            <ul>
+              <li>The problem is <b><i>shared mutable state</i></b></li>
+            </ul>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>generalization of OpenMP - but not with macros</li>
+            <li>likewise messaging systems as generalization of MPI - ActiveMQ for NIBR</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>Functional Programming</h2>
+          <div class='stretch' style='position: relative'>
+          <div style='position: absolute; top: 0px; right: 0px'>
+            <img style='float: right; margin: 2px' width='245px' src='images/functional-programming-taxonomy.png'/>
+            <img style='float: right; margin: 2px' height='150px' src='images/church.jpg'/>
+          </div>
+          <div style='position: absolute; top: 0px; left: 0px'>
+          <ul>
+            <li>Alonzo Church 1930</li>
+            <ul>
+              <li>Lambda Calculus</li>
+              <li>System for maths / computation</li>
+            </ul>
+            <li>Declarative (vs Imperative)</li>
+            <li>Computation is the evalutation of functions</li>
+            <li>Avoids <i>mutable</i> state</li>
+            <li>Haskell (pure), Lisp (Scheme, Clojure, Common Lisp), Erlang, ML (OCaml), Javascript, C#, F#, Groovy, Scala, Java 8, Python, R, Julia,...</li>
+          </ul>
+          </div>
+          </div>
+          <aside class="notes">
+          <ul>
+            <li>pure vs non-pure - side-effects</li>
+            <li>many languages with functional features added</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>Functional Programming</h2>
+          <ul>
+            <li>First-class functions</li>
+            <li>Higher-order functions</li>
+            <li>Pure functions (no side effects)</li>
+            <ul>
+              <li>Referential transparency and beta-reduction in any order including parallel</li>
+            </ul>
+            <li>(Tail) recursion, partial functions, currying</li>
+            <li>Strict (eager) vs non-strict (lazy) evaluation</li>
+            <li>Typed or Untyped - Category theory when typed</li>
+            <li>Software Transactional Memory (Clojure)</li>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>highlight this makes PARALLEL capable</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>Functional Programming</h2>
+<pre>
+<code contenteditable class="python">
+expr = "28+32+++32++39"
+res = 0
+for t in expr.split("+"):
+    if t != "":
+        res += int(t)
+
+print res
+</code>
+</pre>
+<pre>
+<code contenteditable class="python">
+expr = "28+32+++32++39"
+print reduce(map(filter(expr.split("+"), isNonBlank), toInteger), add)
+</code>
+</pre>
+        </section>
+      
+        <section>
+          <h2>Communicating Sequential Processes</h2>
+          <div class='stretch' style='position: relative'>
+          <div style='position: absolute; top: 0px; right: 0px'>
+            <img height='150px' src='images/hoare.jpg'/>
+          </div>
+          <div style='position: absolute; top: 0px; left: 0px'>
+          <ul>
+            <li>Tony Hoare 1978</li>
+            <li>One of multiple <i>process calculi</i></li>
+            <ul>
+              <li>Verifiable lack of deadlocks</li>
+            </ul>
+            <li>Avoids <i>shared</i> state</li>
+            <li>Synchronous message passing via shared channels</li>
+            <li>Concurrently executing elements - send / receive</li>
+            <li>Functions can use and return channels</li>
+            <li>Implemented in Ada, Go and Clojure core.async</li>
+            <li>Distribution is possible but difficult</li>
+          </ul>
+          </div>
+          </div>
+          <aside class="notes">
+          <ul>
+            <li>process calculi - used to prove lack of deadlocks</li>
+            <li>CSS, Join Calculus, Ambient Calculus, etc.</li>
+            <li>synchronous!</li>
+            <li>distribution hard because channel is shared and channel is complex</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>Communicating Sequential Processes</h2>
+          <img height='400px' src='images/csp-model.jpg'>
+        </section>
+      
+        <section>
+          <h2>Actors</h2>
+          <div class='stretch' style='position: relative'>
+          <div style='position: absolute; top: 0px; right: 0px'>
+            <img height='150px' src='images/hewitt.jpg'/>
+          </div>
+          <div style='position: absolute; top: 0px; left: 0px'>
+          <ul>
+            <li>Carl Hewitt 1973</li>
+            <li>Avoids <i>shared</i> state (share nothing!)</li>
+            <li>Actor (the processing element) has</li>
+            <ul>
+              <li>an identity, <b>non-shared</b> state, and a mailbox</li>
+              <li>asynchronous messaging</li>
+            </ul>
+            <li>Actors can</li>
+            <ul>
+              <li>do work, send messages, and create other actors</li>
+            </ul>
+            <li>Built-into some programming languages - Erlang, Scala</li>
+            <li>Frameworks available for almost all languages - Akka</li>
+            <li>Concurrency <b>and</b> (somewhat easier) Distribution</li>
+            <li>Bioinformatics example - MetaRay (MPI) to BioSAL/Thorium</li>
+          </ul>
+          </div>
+          </div>
+          <aside class="notes">
+          <ul>
+            <li>similar but mailbox ("channel") is easier to distribute</li>
+            <li>not many people know how to design actor systems</li>
+            <li>beyond actors - reactive programming (no slide)</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>Actors</h2>
+          <img height='500px' src='images/actor-model.png'>
+        </section>
+
+      </section>
+
+      <section>
+
+        <section>
+          <h2>Distributed System Architecture</h2>
+          <ul>
+            <li>Distributed Storage (Filesystems/NoSQL)</li>
+            <li>Hadoop</li>
+            <li>Map-Reduce</li>
+            <li>Apache Spark</li>
+            <li>Lambda Architecture</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Distributed Storage (FS/NoSQL)</h2>
+          <ul>
+            <li>Filesystems</li>
+            <ul>
+              <li>Lustre, GlusterFS (Redhat), OneFS (Isilon)</li>
+              <li>Hadoop HDFS</li>
+              <li>Tachyon</li>
+            </ul>
+            <li>NoSQL / NewSQL</li>
+            <ul>
+              <li>Distribution one of the main reasons for NoSQL</li>
+              <li><i>Key-value</i> (Dynamo, Redis, Riak, Voldemort)</li>
+              <li><i>Document</i> (MongoDB, Couchbase)</li>
+              <li><i>Column</i> (Cassandra, Accumulo, HBase, Vertica)</li>
+              <li><i>Graph</i> (Neo4J, Allegro, InfiniteGraph, OrientDB)</li>
+              <li><i>Relational</i> (NuoDB, Teradata)</li>
+            </ul>
+            <li>These all have to deal with standard distribution problems</li>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>tachyon is distributed in-memory filesystem</li>
+            <li>relational!</li>
+            <li>graph dbs don't really distribute</li>
+            <li>standard problems - shard/partition and replicate leads to consistency/ordering</li>
+            <li>CAP/Guarenteed-Once messaging...</li>
+          </ul>
+          </aside>
+        </section>          
+
+        <section>
+          <h2>Hadoop</h2>
+          <div style='float: right'>
+            <img style='width: 200px' src='images/hadoop.jpg'/>
+          </div>
+          <ul>
+            <li>Distributed storage AND computing</li>
+            <li>HDFS (file system storage)</li>
+            <ul>
+              <li>NameNodes and DataNodes</li>
+            </ul>
+            <li>Map-Reduce (computing model)</li>
+            <ul>
+              <li>JobTrackers and TaskTrackers</li>
+            </ul>
+            <li>Hadoop "ecosystem":</li>
+            <ul>
+              <li>HBase <i>or Parquet</i> (NoSQL DB)</li>
+              <li>Pig (Hadoop job DSL / scripting)</li>
+              <li>Hadwrap (scripting / workflow)</li>
+              <li>Hive (data warehouse)</li>
+              <li>Drill <i>or Impala</i> (SQL query engine)</li>
+              <li>Sqoop (ETL - DB to Hadoop)</li>
+            </ul>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>Mahout (ML) and Giraph (graph data)</li>
+            <li>BIG clusters - something will fail - failover / redundancy</li>
+            <li>Hadwrap!</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>Map-Reduce</h2>
+          <ul>
+            <li>A Map-Reduce job has</li>
+            <ul>
+              <li>an input data-set and an output directory</li>
+              <li>a mapper, reducer and optional combiner (classes)</li>
+              <li>all classes get and produce kv-pairs</li>
+            </ul>
+            <li>The job runs as</li>
+            <ol>
+              <li class="fragment">The input is converted to kv-pairs (key=line#, value=text)</li>
+              <li class="fragment">Mapper gets and processes kv-pairs (data locality)</li>
+              <li class="fragment">Sort/Shuffle phase on mapper output</li>
+              <li class="fragment">Reducers get all kv-pairs for a given key (sorted)</li>
+              <li class="fragment">Reducers output is stored in output directory</li>
+            </ol>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>Most algorithms are map-reduce-filter-able but iteratively so</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>Map-Reduce</h2>
+          <img style='height: 500px' src='images/MR.png'>
+        </section>
+
+        <section>
+          <h2>Apache Spark</h2>
+          <div class='stretch' style='position: relative'>
+          <div style='position: absolute; top: 0px; right: 0px'>
+            <img width='150px' src='images/spark-logo.png'/>
+          </div>
+          <div style='position: absolute; top: 0px; left: 0px'>
+          <ul>
+            <li>New computing model</li>
+            <li>RDD - Resilient Distributed Datasets</li>
+            <ul>
+              <li>Read-only, distributed collection of objects</li>
+              <li>Stored on disk (HDFS/Cassandra) or in-memory</li>
+              <li>Memory usage on shared clusters can be an issue</li>
+            </ul>
+            <li>Computation is transformations and actions on RDDs</li>
+            <ul>
+              <li>Transformations convert data or RDD into an RDD</li>
+              <li>Actions convert RDD to object / data</li>
+              <li>Functional programming (immutability) paradigm</li>
+              <li>DAG (lineage) for how RDD was built (scheduling, failover)</li>
+              <li>Lazy evaluation of tasks</li>
+              <li>Actor-based (Akka) distribution of code</li>
+            </ul>
+            <li>Faster than Hadoop, more expressive than MR</li>
+          </ul>
+          </div>
+          </div>
+          <aside class="notes">
+          <ul>
+            <li>issue with hadoop job is I/O on front-end and back-end</li>
+            <li>Spark is RDDs at front and back-end</li>
+            <li>iterative is then modeled as DAG with lazy execution</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>Apache Spark</h2>
+          <ul>
+            <li>Sub-projects</li>
+            <ul>
+              <li>Spark SQL (was "Shark" - Spark for Hive)</li>
+              <li>GraphX (graph data)</li>
+              <li>MLlib (machine learning)</li>
+              <li>Spark Streaming (events)</li>
+            </ul>
+            <li>Multiple languages - Java 8, Scala, Python, R</li>
+            <li>Bioinformatics examples:</li>
+            <ul>
+              <li>gData Integration and Analytics Layers</li>
+              <li>ADAM (AMPlab and bdgenomics.org)</li>
+              <li><a target="_blank" href="http://www.slideshare.net/TimothyDanford/tdanford-spark"><i>Why is Bioinformatics a Good Fit for Spark?</i></a></li>
+              <li><a target="_blank" href="http://people.ee.ethz.ch/~maderk/spark-summit-2014-presentation/ssPresentation.html"><i>Real-time Image Processing and Analytics using Spark</i></a></li>
+              <li><a target="_blank" href="http://blog.cloudera.com/blog/2014/03/why-apache-spark-is-a-crossover-hit-for-data-scientists/"><i>Why Apache Spark is a Crossover Hit for Data Scientists</i></a></li>
+            </ul>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>even traditional HPC world is trying Spark</li>
+            <li>ADAM - GATK for Spark</li>
+            <li>Workflows better than 50% speed up - Some steps 50x speedup on 100 node cluster</li>
+            <li>Same code on small data/single machine or cluster</li>
+          </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>Lambda Architecture</h2>
+          <img style='height: 250px' src='images/lambda-arch.jpg'/>
+          <ul>
+            <li>Slow batch layer for all data (Hadoop)</li>
+            <li>Fast speed layer for latest data (updating)</li>
+            <li>Serving layer for queries based on both layers</li>
+            <li>Raw data is immutable facts (append-only)</li>
+          </ul>
+          <aside class="notes">
+          <ul>
+            <li>Beyond Spark - deal with velocity - spark as both fast and slow layers</li>
+          </ul>
+          </aside>
+        </section>
+
+      </section>
+
+      <section>
+        <h2>What does this have to do with me (again)?</h2>
+        <ul>
+          <li>Bioinformatics has/will have a volume constraint</li>
+          <li>Some algorithms have a CPU constraint</li>
+          <li>For volume, move to distributed data</li>
+          <li>For computation on distributed data</li>
+          <ul>
+            <li>Parallelize over standard data partitions (position, samples)</li>
+            <li>Distribute that computation</li>
+            <ul>
+              <li>Actors &gt; MPI and Spark &gt; Map-Reduce</li>
+            </ul>
+            <li>Functional programming as an algorithm goal</li>
+          </ul>
+          <li>Additional advantages with Apache Spark</li>
+          <ul>
+            <li>Availability of intermediate processing steps for workflows</li>
+            <li>Availability of graph and ML algorithms</li>
+          </ul>
+        </ul>
+        <aside class="notes">
+        <ul>
+          <li>look to parallelize on obvious</li>
+          <li>MPI, messaging, hadwrap, GE/tasks</li>
+          <li>look to move computation to data</li>
+          <li>anything big - code needs to look functional</li>         
+        </ul>
+        </aside>
+      </section>
+      
+      <section>
+        <h2>Thank You! Questions?</h2>
+        <ul>
+          <li class="fragment highlight-current-blue">Special thanks to Ken Robbins, Dave Tester, Steve Litster, Nick Holway, Timothy Danford, Laurent Gautier and Jason Calvert</li>
+          <li class="fragment highlight-current-blue">OpenMP/MPI/Hadoop/Spark is available in SciComp/DataEng clusters</li>
+          <li class="fragment highlight-current-blue">What are your data / computation challenges?</li>
+        </ul>
+        <img height="300px" src='images/crossroads.png'/>
+      </section>
+
+    </div>
+
+  </div>
+
+  <script src="lib/js/head.min.js"></script>
+  <script src="js/reveal.min.js"></script>
+
+  <script>
+
+    Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: false,
+        theme: Reveal.getQueryHash().theme || 'beige', // available themes are in /css/theme
+        transition: Reveal.getQueryHash().transition || 'fade', // default/cube/page/concave/zoom/linear/fade/none
+
+        // Optional libraries used to extend on reveal.js
+        dependencies: [
+            { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+            { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+            { src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+            { src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+        ]
+    });
+
+  </script>
+
+</body>
+</html>
